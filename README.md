@@ -155,6 +155,17 @@ def git_push(...) -> Cmd:
 
 Caller-provided transforms replace defaults entirely — no merging.
 
+### Opting out of meta-params
+
+By default, every tool gets transform meta-params (`_search`, `_limit`, etc.) injected
+into its schema. Tools that shouldn't be filtered (config, help, authoring) can opt out:
+
+```python
+@tool("Show help text", read_only=True, meta_params=False)
+def my_help() -> str:
+    return "..."
+```
+
 ## LLM self-authoring
 
 An LLM connected to mcpipe can create its own tools and transforms at runtime —

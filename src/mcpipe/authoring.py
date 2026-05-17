@@ -58,6 +58,9 @@ def my_tool_name(
 - read_only: True if the tool only reads data, never writes
 - destructive: True if the tool can cause irreversible changes (delete, overwrite)
 - idempotent: True if calling it twice with the same args has the same effect
+- meta_params: True (default) to inject transform meta-params (_search, _limit, etc.)
+  into this tool's schema. Set to False for utility tools whose output shouldn't be
+  filtered (e.g. config tools, help tools).
 - Ask the user if you're unsure about these flags
 
 ### output_filter — default transforms
