@@ -74,7 +74,9 @@ indent-style = "space"
 docstring-code-format = true
 
 [tool.poe.tasks]
-test = "pytest"
+test = { sequence = ["_pytest", "_update_badge"], help = "Run tests and update coverage badge" }
+_pytest = "pytest"
+_update_badge = "python scripts/update_coverage_badge.py"
 lint = "ruff check . --fix"
 format = "ruff format ."
 typecheck = "ty check src tests"
