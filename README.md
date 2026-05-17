@@ -15,6 +15,9 @@
   - [Docker Compose](#docker-compose)
   - [Filesystem](#filesystem)
 - [Transforms](#transforms)
+  - [Built-in transforms](#built-in-transforms)
+  - [Meta-params](#meta-params)
+  - [Custom transforms](#custom-transforms)
 - [Writing plugins](#writing-plugins)
   - [Public API](#public-api)
     - [`@tool(description, *, ...)`](#tooldescription-)
@@ -110,8 +113,22 @@ list of paths, or leave it unset to allow only the working directory.
 ## Transforms
 
 Output post-processing is pluggable. Transforms are pure functions — lines in, lines out.
+They run after caching and never mutate the cache.
 
-Built-in: `search`, `limit`, `offset`, `head`, `tail`.
+### Built-in transforms
+
+All built-ins are registered as `weak=True` — a user `@transform` with the same name
+replaces them.
+
+| Transform | Description | Params |
+|-----------|-------------|--------|
+| `search` | Filter lines by regex pattern (case-insensitive) | `pattern: str` |
+| `limit` | Return at most N lines from the start | `n: int = 50` |
+| `offset` | Skip the first N lines | `n: int = 0` |
+| `head` | Return the first N lines | `n: int = 10` |
+| `tail` | Return the last N lines | `n: int = 10` |
+
+### Meta-params
 
 Any tool call can include transform meta-params prefixed with `_`:
 
@@ -119,7 +136,12 @@ Any tool call can include transform meta-params prefixed with `_`:
 { "name": "git_log", "arguments": { "since": "1week", "_search": "fix", "_limit": 10 } }
 ```
 
-Custom transforms use the `@transform` decorator:
+These are desugared into transform steps before dispatch — plugins never see them.
+
+### Custom transforms
+
+Custom transforms use the `@transform` decorator and live in
+`~/.config/mcpipe/transforms/`:
 
 ```python
 from mcpipe import transform
@@ -128,6 +150,9 @@ from mcpipe import transform
 def sort(lines: list[str], reverse: bool = False) -> list[str]:
     return sorted(lines, reverse=reverse)
 ```
+
+The first argument must be `lines: list[str]`, and the function must return
+`list[str]`. Additional parameters become the transform's config schema.
 
 ## Writing plugins
 
