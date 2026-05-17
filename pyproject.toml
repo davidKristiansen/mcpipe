@@ -1,0 +1,74 @@
+[project]
+name = "mcpipe"
+version = "0.1.0"
+description = "Plugin-based MCP server framework — routes any CLI tool through Source → Executor → Sink pipelines"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "debugpy>=1.8.20",
+    "poethepoet>=0.46.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.13",
+    "ty>=0.0.37",
+]
+
+[project.scripts]
+mcpipe = "mcpipe.__main__:cli"
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcpipe"]
+
+[tool.uv]
+package = true
+link-mode = "copy"
+
+[tool.ruff]
+line-length = 88
+cache-dir = ".cache/ruff"
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+
+select = [
+  "TID252", # Disallow relative imports from parent directories (i.e., 'from ..core import x')
+  "E",      # Enforce PEP 8 style guide (whitespace and formatting rules)
+  "F",      # Pyflakes checks for logical errors (e.g., unused variables, undefined names)
+  "I",      # isort ensures imports are sorted properly
+  "W",      # Handle warnings from pycodestyle
+  "B",      # Find common bugs with flake8-bugbear
+  "C4",     # Improve list comprehensions with flake8-comprehensions
+  "UP",     # Utilize pyupgrade for automatic syntax upgrades
+]
+
+[tool.pytest.ini_options]
+cache_dir = ".cache/pytest"
+addopts = "--no-header -q"
+
+[tool.ty.environment]
+extra-paths = ["src"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.poe.tasks]
+test = "pytest"
+test-report = "pytest --junitxml=pytest-report.xml"
+test-coverage = { help = "Run tests with coverage", cmd = "pytest --cov=src/mcpipe tests/" }
+lint = "ruff check . --fix"
+format = "ruff format ."
+typecheck = "ty check src tests"
+check  = { sequence = ["lint", "typecheck", "test"], help = "Run lint + typecheck + tests" }
+release = { help = "Full release workflow: bump version, generate changelog, merge to main, tag, and sync back", cmd = "bash scripts/release.sh" }
+clean = { help = "Remove build artifacts and cache files", cmd = "rm -rf dist/ build/ **/*.egg-info/ .cache/ htmlcov/ .coverage .ruff_cache/ .mypy_cache/ **/__pycache__/" }
+build = { help = "Build wheel and sdist", cmd = "uv build" }
+docs = { help = "Build HTML documentation", cmd = "bash scripts/docs.sh" }
