@@ -1,5 +1,8 @@
 # mcpipe
 
+![license](https://img.shields.io/badge/license-MIT-blue)
+![coverage](https://img.shields.io/badge/coverage-46%25-yellow)
+
 <!--toc:start-->
 - [mcpipe](#mcpipe)
   - [How it works](#how-it-works)
@@ -15,12 +18,13 @@
   - [Transforms](#transforms)
   - [Writing plugins](#writing-plugins)
     - [Default output filters](#default-output-filters)
+    - [Opting out of meta-params](#opting-out-of-meta-params)
   - [LLM self-authoring](#llm-self-authoring)
+    - [How it works](#how-it-works-1)
+    - [Example: LLM creates a kubectl plugin](#example-llm-creates-a-kubectl-plugin)
   - [Development](#development)
   - [License](#license)
 <!--toc:end-->
-
-![coverage](https://img.shields.io/badge/coverage-48%25-yellow)
 
 Plugin-based MCP server that keeps CLI output out of your context window.
 
