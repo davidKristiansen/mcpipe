@@ -197,6 +197,7 @@ def json_only(lines: list[str]) -> list[str]:
     read_only=True,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def authoring_help(
     topic: Annotated[
@@ -220,6 +221,7 @@ def authoring_help(
     read_only=True,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def list_user_extensions() -> str:
     plugins_dir = user_plugins_dir()
@@ -259,6 +261,7 @@ def list_user_extensions() -> str:
     read_only=True,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def read_extension(
     name: Annotated[str, "Filename without .py (e.g. 'kubectl')"],
@@ -286,6 +289,7 @@ def read_extension(
     read_only=False,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def write_plugin(
     name: Annotated[str, "Filename without .py (e.g. 'kubectl')"],
@@ -311,6 +315,7 @@ def write_plugin(
     read_only=False,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def write_transform(
     name: Annotated[str, "Filename without .py (e.g. 'sort')"],
@@ -339,6 +344,7 @@ def write_transform(
     read_only=False,
     destructive=True,
     idempotent=True,
+    meta_params=False,
 )
 def delete_plugin(
     name: Annotated[str, "Filename without .py (e.g. 'kubectl')"],
@@ -359,6 +365,7 @@ def delete_plugin(
     read_only=False,
     destructive=True,
     idempotent=True,
+    meta_params=False,
 )
 def delete_transform(
     name: Annotated[str, "Filename without .py (e.g. 'sort')"],

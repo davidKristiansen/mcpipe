@@ -41,6 +41,7 @@ def view(
     read_only=True,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def handles(
     filter: Annotated[str | None, "Substring filter on handle names"] = None,
@@ -58,6 +59,7 @@ def handles(
     read_only=False,
     destructive=False,
     idempotent=True,
+    meta_params=False,
 )
 def reload() -> str:
     from mcpipe.bootstrap import reload_plugins

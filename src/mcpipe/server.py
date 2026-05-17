@@ -120,19 +120,11 @@ def _inject_meta_params(schema: dict[str, Any]) -> dict[str, Any]:
 
 def _handle_tools_list(req_id: int | str | None) -> dict[str, Any]:
     tools = get_tools()
-    # Framework tools that shouldn't get meta-params injected
-    # (handles/reload are metadata tools, not output tools)
-    skip_meta = {
-        "handles", "reload",
-        "authoring_help", "list_user_extensions", "read_extension",
-        "write_plugin", "write_transform",
-        "delete_plugin", "delete_transform",
-    }
     tool_list = []
     for entry in tools.values():
         t = entry.tool
         input_schema = t.input_schema
-        if t.name not in skip_meta:
+        if entry.meta_params:
             input_schema = _inject_meta_params(input_schema)
         tool_def: dict[str, Any] = {
             "name": t.name,

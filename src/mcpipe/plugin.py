@@ -79,6 +79,7 @@ class _ToolEntry:
     ttl: int | None
     plugin: str
     output_filter: list[TransformStep] | None = None
+    meta_params: bool = True
 
 
 def get_tools() -> dict[str, _ToolEntry]:
@@ -175,6 +176,7 @@ def tool(
     open_world: bool = True,
     ttl: int | None = None,
     output_filter: list[TransformStep] | None = None,
+    meta_params: bool = True,
 ) -> Callable:
     """Register a function as an mcpipe tool.
 
@@ -185,6 +187,10 @@ def tool(
     output_filter: default transforms applied to output when the caller
     does not provide explicit _meta transform params.  Caller-provided
     transforms replace (not append to) these defaults.
+
+    meta_params: whether transform meta-params (_search, _limit, etc.)
+    should be injected into this tool's schema.  Default True.  Set to
+    False for framework/utility tools whose output shouldn't be filtered.
     """
     plugin_name = _caller_plugin_name()
 
@@ -208,6 +214,7 @@ def tool(
             ttl=ttl,
             plugin=plugin_name,
             output_filter=output_filter,
+            meta_params=meta_params,
         )
         _REGISTRY[name] = entry
         return func
