@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Pre-commit hook: update TOC + coverage badge, run checks.
+# Install: cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -e
+
+# Regenerate TOC
+python scripts/update_toc.py
+
+# Run lint + typecheck + tests (updates coverage badge via poe test)
+uv run poe check
+
+# Stage any files modified by the hook (TOC, badge)
+git add README.md
