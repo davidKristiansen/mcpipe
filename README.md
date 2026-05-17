@@ -14,6 +14,8 @@
     - [Filesystem](#filesystem)
   - [Transforms](#transforms)
   - [Writing plugins](#writing-plugins)
+    - [Default output filters](#default-output-filters)
+  - [LLM self-authoring](#llm-self-authoring)
   - [Development](#development)
   - [License](#license)
 <!--toc:end-->
@@ -26,7 +28,7 @@ Any command-line tool can be exposed as an MCP tool. Output gets cached to disk 
 the LLM gets back a handle and uses generic framework tools (`view`, `search`) to
 read what it needs instead of having the full dump shoved into the conversation.
 
-Zero dependencies. Python 3.13+.
+Zero dependencies. Python 3.12+.
 
 ## How it works
 
@@ -152,6 +154,45 @@ def git_push(...) -> Cmd:
 ```
 
 Caller-provided transforms replace defaults entirely — no merging.
+
+## LLM self-authoring
+
+An LLM connected to mcpipe can create its own tools and transforms at runtime —
+no restarts, no manual file editing. This is the core design: if a tool doesn't
+exist yet, the LLM writes it, reloads, and uses it immediately.
+
+### How it works
+
+mcpipe exposes framework tools for managing user extensions:
+
+| Tool | Purpose |
+|------|---------|
+| `authoring_help` | Returns the full plugin/transform API guide |
+| `write_plugin` | Creates or overwrites a user plugin file |
+| `write_transform` | Creates or overwrites a user transform file |
+| `read_extension` | Reads a user plugin/transform source file |
+| `list_user_extensions` | Lists files in the user config dirs |
+| `delete_plugin` / `delete_transform` | Removes a file |
+| `reload` | Hot-reloads all modules to pick up changes |
+
+User extensions live in `~/.config/mcpipe/` (or `$XDG_CONFIG_HOME/mcpipe/`):
+- `plugins/*.py` — tools
+- `transforms/*.py` — output transforms
+
+### Example: LLM creates a kubectl plugin
+
+```
+User: "I need to check my Kubernetes pods"
+
+LLM:  1. Calls authoring_help(topic="plugin") — reads the API
+      2. Calls write_plugin(name="kubectl", content="...")
+      3. Calls reload() — new tools are live
+      4. Calls kubectl_get_pods(namespace="production")
+      5. Calls view(handle="...", _search="CrashLoopBackOff")
+```
+
+The plugin persists across sessions. Next time the LLM connects, `kubectl_get_pods`
+is already available.
 
 ## Development
 

@@ -12,7 +12,7 @@ can be exposed as an MCP tool — output is cached and accessed through generic
 `view` framework tool instead of dumped into the conversation.
 Output can be post-processed through a pluggable **transform** pipeline.
 
-Zero hard dependencies. Python 3.13+.
+Zero hard dependencies. Python 3.12+.
 
 The name is "MCP" + "pipe" — Unix-style piping for the Model Context Protocol.
 
