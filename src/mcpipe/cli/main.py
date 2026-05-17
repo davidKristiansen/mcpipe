@@ -9,7 +9,7 @@ from mcpipe.bootstrap import bootstrap
 from mcpipe.cli.args import Opts, coerce_args, parse_argv
 from mcpipe.log import get_logger, setup_logging
 from mcpipe.plugin import execute, get_tools
-from mcpipe.transform import TransformStep
+from mcpipe.transform import TransformStep, apply_transforms
 
 _log = get_logger("cli")
 
@@ -52,30 +52,78 @@ async def _run(opts: Opts) -> int:
     return 0
 
 
-async def _list() -> int:
-    tools = get_tools()
-    if not tools:
-        print("No tools registered.")
-    else:
+async def _view(opts: Opts) -> int:
+    """View cached output by handle, with optional transforms."""
+    from mcpipe.cache import load
+
+    try:
+        cached = load(opts.handle)
+    except FileNotFoundError:
+        print(
+            f"Error: no cached output for handle '{opts.handle}'",
+            file=sys.stderr,
+        )
+        return 1
+
+    lines = cached.lines
+
+    if opts.transforms:
+        steps = [
+            TransformStep(name=name, params=params)
+            for name, params in opts.transforms
+        ]
+        _log.debug("transforms: %s", steps)
+        try:
+            lines = apply_transforms(lines, steps)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+    if lines:
+        print("\n".join(lines), end="")
+    return 0
+
+
+async def _list(opts: Opts) -> int:
+    filt = opts.filter
+    show_tools = not opts.transforms_only
+    show_transforms = not opts.tools_only
+
+    if show_tools:
+        tools = get_tools()
         # Group by plugin
         by_plugin: dict[str, list[tuple[str, str]]] = {}
         for name, entry in sorted(tools.items()):
-            by_plugin.setdefault(entry.plugin, []).append((name, entry.tool.description))
+            plugin = entry.plugin
+            if opts.plugin_filter and plugin != opts.plugin_filter:
+                continue
+            if filt and filt not in name:
+                continue
+            desc = entry.tool.description
+            by_plugin.setdefault(plugin, []).append((name, desc))
 
-        print("\n  Tools")
-        for plugin, entries in sorted(by_plugin.items()):
-            print(f"\n    [{plugin}]")
-            for name, desc in entries:
-                print(f"      {name:20s} {desc}")
+        if by_plugin:
+            print("\n  Tools")
+            for plugin, entries in sorted(by_plugin.items()):
+                print(f"\n    [{plugin}]")
+                for name, desc in entries:
+                    print(f"      {name:20s} {desc}")
+        elif not show_transforms:
+            print("No matching tools.")
 
-    from mcpipe.transform import get_transforms
+    if show_transforms:
+        from mcpipe.transform import get_transforms
 
-    transforms = get_transforms()
-    if transforms:
-        print("\n  Transforms\n")
-        for name, entry in sorted(transforms.items()):
-            weak = " (builtin)" if entry.weak else ""
-            print(f"    {name:20s} {entry.description}{weak}")
+        transforms = get_transforms()
+        filtered = {
+            n: e for n, e in transforms.items()
+            if not filt or filt in n
+        }
+        if filtered:
+            print("\n  Transforms\n")
+            for name, entry in sorted(filtered.items()):
+                weak = " (builtin)" if entry.weak else ""
+                print(f"    {name:20s} {entry.description}{weak}")
 
     print()
     return 0
@@ -99,12 +147,14 @@ async def main(argv: list[str] | None = None) -> int:
     match opts.command:
         case "run":
             return await _run(opts)
+        case "view":
+            return await _view(opts)
         case "list":
-            return await _list()
+            return await _list(opts)
         case "server":
             from mcpipe.server import serve
 
-            await serve()
+            await serve(transport=opts.transport)
             return 0
         case _:
             return 1

@@ -1,4 +1,4 @@
-"""Tests for mcpipe.cache — store, load, gc, list_handles, CachedOutput."""
+"""Tests for mcpipe.cache — store, load, evict_expired, list_handles, CachedOutput."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from mcpipe.cache import CachedOutput, gc, list_handles, load, store
+from mcpipe.cache import CachedOutput, evict_expired, list_handles, load, store
 
 
 class TestStore:
@@ -44,7 +44,10 @@ class TestLoad:
 
 class TestCachedOutput:
     def test_slice(self):
-        co = CachedOutput(handle="h", lines=["a", "b", "c", "d"], total_lines=4, created_at=0)
+        co = CachedOutput(
+            handle="h", lines=["a", "b", "c", "d"],
+            total_lines=4, created_at=0,
+        )
         assert co.slice(1, 2) == ["b", "c"]
 
     def test_slice_beyond_end(self):
@@ -52,7 +55,10 @@ class TestCachedOutput:
         assert co.slice(0, 100) == ["a", "b"]
 
     def test_search_matches(self):
-        co = CachedOutput(handle="h", lines=["foo bar", "baz", "foobar"], total_lines=3, created_at=0)
+        co = CachedOutput(
+            handle="h", lines=["foo bar", "baz", "foobar"],
+            total_lines=3, created_at=0,
+        )
         matches = co.search("foo")
         assert len(matches) == 2
         assert matches[0] == (0, "foo bar")
@@ -63,7 +69,10 @@ class TestCachedOutput:
         assert co.search("zzz") == []
 
     def test_search_case_insensitive(self):
-        co = CachedOutput(handle="h", lines=["Hello", "HELLO", "world"], total_lines=3, created_at=0)
+        co = CachedOutput(
+            handle="h", lines=["Hello", "HELLO", "world"],
+            total_lines=3, created_at=0,
+        )
         assert len(co.search("hello")) == 2
 
 
@@ -73,13 +82,13 @@ class TestGc:
         # Backdate the meta file
         meta = tmp_cache / f"{handle}.meta"
         meta.write_text(f"{int(time.time()) - 100}\n1\n")
-        removed = gc()
+        removed = evict_expired()
         assert removed == 1
         assert not (tmp_cache / handle).exists()
 
     def test_keeps_fresh(self, tmp_cache):
         handle = store("fresh", "data", ttl=3600)
-        removed = gc()
+        removed = evict_expired()
         assert removed == 0
         assert (tmp_cache / handle).exists()
 

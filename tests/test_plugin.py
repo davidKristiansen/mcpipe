@@ -1,4 +1,4 @@
-"""Tests for mcpipe.plugin — @tool decorator, schema generation, execute, pipeline."""
+"""Tests for mcpipe.plugin — @tool decorator, schema generation, execute."""
 
 from __future__ import annotations
 
@@ -8,9 +8,8 @@ from typing import Annotated
 import pytest
 
 from mcpipe.plugin import (
-    Cmd,
     INLINE_THRESHOLD,
-    PipelineOpts,
+    Cmd,
     ToolOutput,
     _build_schema,
     _make_preview,
@@ -19,8 +18,7 @@ from mcpipe.plugin import (
     get_tools,
     tool,
 )
-from mcpipe.types._hints import SinkPreference
-
+from mcpipe.transform import TransformStep
 
 # ---------------------------------------------------------------------------
 # ToolOutput
@@ -166,34 +164,52 @@ class TestExecute:
         with pytest.raises(ValueError, match="Unknown tool"):
             asyncio.run(execute("nonexistent_tool_xyz", {}))
 
-    def test_pipeline_search(self, tmp_cache):
+    def test_transform_search(self, tmp_cache):
+        from mcpipe.bootstrap import bootstrap
+        bootstrap()
+
         @tool("pipe search test")
         def _test_pipe_search() -> str:
             return "apple\nbanana\ncherry\napricot"
 
-        pipeline = PipelineOpts(search="ap")
-        output = asyncio.run(execute("_test_pipe_search", {}, pipeline=pipeline))
+        transforms = [TransformStep(name="search", params={"pattern": "ap"})]
+        output = asyncio.run(
+            execute("_test_pipe_search", {}, transforms=transforms),
+        )
         assert output.is_inline
+        assert output.text is not None
         assert "apple" in output.text
         assert "apricot" in output.text
         assert "banana" not in output.text
 
-    def test_pipeline_paginate(self, tmp_cache):
+    def test_transform_paginate(self, tmp_cache):
+        from mcpipe.bootstrap import bootstrap
+        bootstrap()
         @tool("pipe paginate test")
         def _test_pipe_paginate() -> str:
             return "\n".join(f"line{i}" for i in range(20))
 
-        pipeline = PipelineOpts(offset=5, limit=3)
-        output = asyncio.run(execute("_test_pipe_paginate", {}, pipeline=pipeline))
+        transforms = [
+            TransformStep(name="offset", params={"n": "5"}),
+            TransformStep(name="limit", params={"n": "3"}),
+        ]
+        output = asyncio.run(
+            execute("_test_pipe_paginate", {}, transforms=transforms),
+        )
+        assert output.text is not None
         assert "line5" in output.text
         assert "line7" in output.text
         assert "line8" not in output.text
 
-    def test_pipeline_search_no_match(self, tmp_cache):
+    def test_transform_search_no_match(self, tmp_cache):
+        from mcpipe.bootstrap import bootstrap
+        bootstrap()
         @tool("pipe no match test")
         def _test_pipe_nomatch() -> str:
             return "aaa\nbbb\nccc"
 
-        pipeline = PipelineOpts(search="zzz")
-        output = asyncio.run(execute("_test_pipe_nomatch", {}, pipeline=pipeline))
-        assert "No matches" in output.text
+        transforms = [TransformStep(name="search", params={"pattern": "zzz"})]
+        output = asyncio.run(
+            execute("_test_pipe_nomatch", {}, transforms=transforms),
+        )
+        assert output.text == ""

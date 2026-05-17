@@ -85,7 +85,7 @@ def load(handle: str) -> CachedOutput:
     )
 
 
-def gc() -> int:
+def evict_expired() -> int:
     """Remove expired cache entries. Returns number of entries removed."""
     _ensure_dir()
     now = time.time()
@@ -101,9 +101,9 @@ def gc() -> int:
             data_path.unlink(missing_ok=True)
             meta_path.unlink(missing_ok=True)
             removed += 1
-            _log.debug("gc: removed expired %s", handle)
+            _log.debug("evict: removed expired %s", handle)
     if removed:
-        _log.info("gc: removed %d expired entries", removed)
+        _log.info("evict: removed %d expired entries", removed)
     return removed
 
 

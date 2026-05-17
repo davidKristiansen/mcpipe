@@ -19,7 +19,6 @@ from typing import Annotated, Any, get_type_hints
 from mcpipe.cache import store
 from mcpipe.log import get_logger
 from mcpipe.transform import TransformStep, apply_transforms
-from mcpipe.types._hints import SinkHint, SinkPreference
 from mcpipe.types.protocol import Tool, ToolAnnotations
 
 _log = get_logger("plugin")
@@ -77,12 +76,29 @@ _REGISTRY: dict[str, _ToolEntry] = {}
 class _ToolEntry:
     func: Callable[..., Cmd | str]
     tool: Tool
-    sink_hint: SinkHint
+    ttl: int | None
     plugin: str
 
 
 def get_tools() -> dict[str, _ToolEntry]:
     return _REGISTRY
+
+
+_FRAMEWORK_PLUGINS = frozenset({"framework", "authoring"})
+
+
+def _clear_plugin_tools() -> set[str]:
+    """Remove all plugin-registered tools (not framework tools).
+
+    Returns the set of removed tool names.
+    """
+    to_remove = {
+        name for name, entry in _REGISTRY.items()
+        if entry.plugin not in _FRAMEWORK_PLUGINS
+    }
+    for name in to_remove:
+        del _REGISTRY[name]
+    return to_remove
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +172,6 @@ def tool(
     destructive: bool = True,
     idempotent: bool = False,
     open_world: bool = True,
-    sink: SinkPreference = SinkPreference.STREAM,
     ttl: int | None = None,
 ) -> Callable:
     """Register a function as an mcpipe tool.
@@ -184,7 +199,7 @@ def tool(
                     open_world=open_world,
                 ),
             ),
-            sink_hint=SinkHint(prefer=sink, ttl=ttl),
+            ttl=ttl,
             plugin=plugin_name,
         )
         _REGISTRY[name] = entry
@@ -267,7 +282,7 @@ async def execute(
         output = await _run_func(entry, args)
     except RuntimeError as exc:
         _log.warning("tool %s failed: %s", tool_name, exc)
-        handle = store(tool_name, str(exc), ttl=entry.sink_hint.ttl)
+        handle = store(tool_name, str(exc), ttl=entry.ttl)
         return ToolOutput(
             handle=handle,
             text=str(exc),
@@ -275,7 +290,7 @@ async def execute(
         )
 
     line_count = output.count("\n") + (1 if output and not output.endswith("\n") else 0)
-    handle = store(tool_name, output, ttl=entry.sink_hint.ttl)
+    handle = store(tool_name, output, ttl=entry.ttl)
     _log.info("cached %s -> %s (%d lines)", tool_name, handle, line_count)
 
     # Apply transforms if requested
@@ -296,10 +311,9 @@ async def execute(
 
     inline = line_count <= INLINE_THRESHOLD
     _log.debug(
-        "%s: %d lines, hint=%s, inline=%s",
+        "%s: %d lines, inline=%s",
         tool_name,
         line_count,
-        entry.sink_hint.prefer,
         inline,
     )
 

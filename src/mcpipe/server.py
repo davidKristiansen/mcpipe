@@ -120,13 +120,19 @@ def _inject_meta_params(schema: dict[str, Any]) -> dict[str, Any]:
 
 def _handle_tools_list(req_id: int | str | None) -> dict[str, Any]:
     tools = get_tools()
-    # Framework tools (paginate/search/handles) don't get meta-params injected
-    framework_tools = {"paginate", "search", "handles"}
+    # Framework tools that shouldn't get meta-params injected
+    # (handles/reload are metadata tools, not output tools)
+    skip_meta = {
+        "handles", "reload",
+        "authoring_help", "list_user_extensions", "read_extension",
+        "write_plugin", "write_transform",
+        "delete_plugin", "delete_transform",
+    }
     tool_list = []
     for entry in tools.values():
         t = entry.tool
         input_schema = t.input_schema
-        if t.name not in framework_tools:
+        if t.name not in skip_meta:
             input_schema = _inject_meta_params(input_schema)
         tool_def: dict[str, Any] = {
             "name": t.name,
@@ -259,8 +265,15 @@ async def _dispatch(msg: dict[str, Any]) -> dict[str, Any] | None:
             )
 
 
-async def serve() -> None:
-    """Run the MCP stdio server loop."""
+async def serve(*, transport: str = "stdio") -> None:
+    """Run the MCP server.
+
+    Args:
+        transport: Wire protocol — currently only "stdio" is supported.
+    """
+    if transport != "stdio":
+        raise ValueError(f"Unsupported transport: {transport!r}")
+
     bootstrap()
     _log.info("MCP server ready (%s %s)", __appname__, __version__)
 

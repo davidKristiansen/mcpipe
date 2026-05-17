@@ -16,17 +16,29 @@ from typing import Any
 class Opts:
     """Parsed CLI options."""
 
-    command: str  # "run", "list", "server"
+    command: str  # "run", "list", "view", "server"
     verbosity: int = 0  # 0=warn, 1=info, 2=debug, 3=trace
     color: str = "auto"  # auto|always|never
     config: str | None = None
 
-    # run-specific
+    # run/view-specific
     tool: str = ""
     tool_args: dict[str, str] = field(default_factory=dict)
 
-    # transform steps (run-specific)
+    # transform steps (run and view subcommands)
     transforms: list[tuple[str, dict[str, str]]] = field(default_factory=list)
+
+    # view subcommand
+    handle: str = ""
+
+    # list subcommand
+    filter: str | None = None
+    plugin_filter: str | None = None
+    tools_only: bool = False
+    transforms_only: bool = False
+
+    # server subcommand
+    transport: str = "stdio"
 
     @property
     def use_color(self) -> bool:
@@ -64,13 +76,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--config", metavar="PATH", help="config file path")
 
+    _transform_epilog = (
+        "transforms:\n"
+        "  -T NAME key=val    apply a transform (repeatable, order matters)\n"
+        "  -T NAME=val        shorthand for single-param transforms\n"
+        "\n"
+        "examples:\n"
+        "  -T search pattern=auth    filter lines matching 'auth'\n"
+        "  -T head=10                first 10 lines\n"
+        "  -T offset=5 -T limit=20   lines 5-24\n"
+    )
+
     sub = p.add_subparsers(dest="command")
 
     # -- run --
     run_p = sub.add_parser(
         "run",
         help="execute a tool",
-        usage="%(prog)s [--transform NAME key=v ...] <tool> [tool args...]",
+        usage="%(prog)s [-T NAME key=v ...] <tool> [tool args...]",
+        epilog=_transform_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     run_p.add_argument("tool", help="tool name")
     run_p.add_argument(
@@ -79,10 +104,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # -- list --
-    sub.add_parser("list", help="list available tools")
+    list_p = sub.add_parser("list", help="list available tools and transforms")
+    list_p.add_argument(
+        "filter", nargs="?", default=None,
+        help="substring filter on tool/transform names",
+    )
+    list_p.add_argument(
+        "-p", "--plugin", default=None,
+        help="show only tools from this plugin",
+    )
+    list_p.add_argument(
+        "--tools-only", action="store_true",
+        help="show only tools (hide transforms)",
+    )
+    list_p.add_argument(
+        "--transforms-only", action="store_true",
+        help="show only transforms (hide tools)",
+    )
+
+    # -- view --
+    view_p = sub.add_parser(
+        "view",
+        help="view cached output by handle (with optional transforms)",
+        usage="%(prog)s <handle> [-T NAME key=v ...]",
+        epilog=_transform_epilog,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    view_p.add_argument("handle", help="cache handle from a previous run")
 
     # -- server --
-    sub.add_parser("server", help="start MCP stdio server")
+    srv_p = sub.add_parser("server", help="start MCP server")
+    srv_p.add_argument(
+        "--transport",
+        choices=("stdio",),
+        default="stdio",
+        help="transport protocol (default: stdio)",
+    )
 
     return p
 
@@ -153,7 +210,8 @@ def _extract_transforms(
 
 def parse_argv(argv: list[str]) -> Opts:
     """Parse argv into structured Opts."""
-    # Extract --transform blocks before argparse (argparse can't handle multi-value repeatable flags)
+    # Extract --transform blocks before argparse
+    # (argparse can't handle multi-value repeatable flags)
     argv, transforms = _extract_transforms(argv)
 
     parser = build_parser()
@@ -176,6 +234,16 @@ def parse_argv(argv: list[str]) -> Opts:
             ns.tool_remainder + remainder,
         )
         opts.transforms = transforms
+    elif ns.command == "view":
+        opts.handle = ns.handle
+        opts.transforms = transforms
+    elif ns.command == "list":
+        opts.filter = ns.filter
+        opts.plugin_filter = ns.plugin
+        opts.tools_only = ns.tools_only
+        opts.transforms_only = ns.transforms_only
+    elif ns.command == "server":
+        opts.transport = ns.transport
     elif remainder:
         parser.error(f"unrecognized arguments: {' '.join(remainder)}")
 

@@ -1,44 +1,20 @@
-"""Tests for mcpipe.framework — paginate, search, handles tool functions."""
+"""Tests for mcpipe.framework — view, handles tool functions."""
 
 from __future__ import annotations
 
 from mcpipe.cache import store
-from mcpipe.framework import handles, paginate, search
+from mcpipe.framework import handles, view
 
 
-class TestPaginate:
-    def test_basic_slice(self, tmp_cache):
+class TestView:
+    def test_returns_content(self, tmp_cache):
         handle = store("t", "a\nb\nc\nd\ne")
-        result = paginate(handle=handle, offset=1, limit=2)
-        assert "lines 1-2 of 5" in result
-        assert "b" in result
-        assert "c" in result
-
-    def test_offset_beyond_end(self, tmp_cache):
-        handle = store("t", "a\nb")
-        result = paginate(handle=handle, offset=100, limit=5)
-        assert "No lines at offset 100" in result
+        result = view(handle=handle)
+        assert "a" in result
+        assert "e" in result
 
     def test_missing_handle(self, tmp_cache):
-        result = paginate(handle="nonexistent_xyz", offset=0, limit=10)
-        assert "Error" in result
-
-
-class TestSearch:
-    def test_finds_matches(self, tmp_cache):
-        handle = store("t", "foo bar\nbaz\nfoo qux")
-        result = search(handle=handle, pattern="foo")
-        assert "2 matches" in result
-        assert "foo bar" in result
-        assert "foo qux" in result
-
-    def test_no_matches(self, tmp_cache):
-        handle = store("t", "aaa\nbbb")
-        result = search(handle=handle, pattern="zzz")
-        assert "No matches" in result
-
-    def test_missing_handle(self, tmp_cache):
-        result = search(handle="nonexistent_xyz", pattern="x")
+        result = view(handle="nonexistent_xyz")
         assert "Error" in result
 
 

@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-
-import pytest
 
 from mcpipe.server import _camel, _dispatch, _handle_initialize, _to_json
 from mcpipe.types.protocol import (
@@ -13,12 +10,11 @@ from mcpipe.types.protocol import (
     InitializeResult,
     ServerCapabilities,
     ServerInfo,
+    TextContent,
     Tool,
     ToolAnnotations,
     ToolResult,
-    TextContent,
 )
-
 
 # ---------------------------------------------------------------------------
 # _camel
@@ -134,18 +130,21 @@ class TestDispatch:
         resp = asyncio.run(
             _dispatch({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         )
+        assert resp is not None
         assert resp["result"]["protocolVersion"]
 
     def test_ping(self):
         resp = asyncio.run(
             _dispatch({"jsonrpc": "2.0", "id": 2, "method": "ping", "params": {}})
         )
+        assert resp is not None
         assert resp["result"] == {}
 
     def test_unknown_method(self):
         resp = asyncio.run(
             _dispatch({"jsonrpc": "2.0", "id": 3, "method": "bogus", "params": {}})
         )
+        assert resp is not None
         assert "error" in resp
         assert resp["error"]["code"] == ErrorCode.METHOD_NOT_FOUND.value
 
@@ -163,6 +162,7 @@ class TestDispatch:
         resp = asyncio.run(
             _dispatch({"jsonrpc": "2.0", "id": 4, "method": "tools/list", "params": {}})
         )
+        assert resp is not None
         tools = resp["result"]["tools"]
         assert isinstance(tools, list)
         assert len(tools) > 0
@@ -180,6 +180,7 @@ class TestDispatch:
                 "params": {"name": "no_such_tool_xyz"},
             })
         )
+        assert resp is not None
         assert "error" in resp
 
     def test_tools_call_missing_name(self, tmp_cache):
@@ -191,4 +192,5 @@ class TestDispatch:
                 "params": {},
             })
         )
+        assert resp is not None
         assert "error" in resp

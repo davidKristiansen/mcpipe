@@ -52,6 +52,13 @@ def get_transforms() -> dict[str, _TransformEntry]:
     return _REGISTRY
 
 
+def _clear_transforms() -> set[str]:
+    """Remove all registered transforms. Returns removed names."""
+    removed = set(_REGISTRY.keys())
+    _REGISTRY.clear()
+    return removed
+
+
 _PY_TO_JSON: dict[type, str] = {
     str: "string",
     int: "integer",

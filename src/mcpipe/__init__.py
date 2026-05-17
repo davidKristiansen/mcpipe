@@ -2,14 +2,13 @@
 
 Plugin authoring surface:
 
-    from mcpipe import tool, Cmd, SinkPreference, transform
+    from mcpipe import tool, Cmd, transform
 """
 
 from mcpipe._version import __appname__, __version__
 from mcpipe.bootstrap import bootstrap
 from mcpipe.plugin import Cmd, ToolOutput, tool
 from mcpipe.transform import TransformStep, transform
-from mcpipe.types import SinkPreference
 
 __all__ = [
     "__appname__",
@@ -20,5 +19,4 @@ __all__ = [
     "Cmd",
     "ToolOutput",
     "TransformStep",
-    "SinkPreference",
 ]
