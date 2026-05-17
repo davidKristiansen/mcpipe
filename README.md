@@ -144,10 +144,14 @@ Custom transforms use the `@transform` decorator and live in
 `~/.config/mcpipe/transforms/`:
 
 ```python
+from typing import Annotated
 from mcpipe import transform
 
 @transform("Sort lines alphabetically")
-def sort(lines: list[str], reverse: bool = False) -> list[str]:
+def sort(
+    lines: list[str],
+    reverse: Annotated[bool, "Sort in reverse order"] = False,
+) -> list[str]:
     return sorted(lines, reverse=reverse)
 ```
 
