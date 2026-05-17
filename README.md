@@ -16,6 +16,14 @@
   - [Filesystem](#filesystem)
 - [Transforms](#transforms)
 - [Writing plugins](#writing-plugins)
+  - [Public API](#public-api)
+    - [`@tool(description, *, ...)`](#tooldescription-)
+    - [`Cmd(*args: str)`](#cmdargs-str)
+    - [`ToolOutput`](#tooloutput)
+    - [`@transform(description, *, weak=False)`](#transformdescription-weakfalse)
+    - [`TransformStep(name, params)`](#transformstepname-params)
+  - [Examples](#examples)
+  - [Pure Python tools](#pure-python-tools)
   - [Fuller example — git log](#fuller-example-git-log)
   - [Default output filters](#default-output-filters)
   - [Opting out of meta-params](#opting-out-of-meta-params)
@@ -125,6 +133,79 @@ def sort(lines: list[str], reverse: bool = False) -> list[str]:
 
 A plugin is a Python file in `mcpipe/plugins/` (built-in) or `~/.config/mcpipe/plugins/` (user).
 
+### Public API
+
+Everything a plugin needs is importable from `mcpipe`:
+
+```python
+from mcpipe import tool, Cmd, transform, TransformStep, ToolOutput
+```
+
+#### `@tool(description, *, ...)`
+
+Decorator that registers a function as an MCP tool. The function name becomes the
+tool name. Type hints generate the JSON Schema. Return `Cmd` for subprocess or `str`
+for direct output.
+
+```python
+@tool(
+    description: str,           # Tool description shown to LLM
+    *,
+    read_only: bool = False,    # Tool only reads, never modifies
+    destructive: bool = True,   # Tool may cause irreversible changes
+    idempotent: bool = False,   # Safe to call repeatedly with same args
+    open_world: bool = True,    # Tool interacts with external world
+    ttl: int | None = None,     # Cache TTL in seconds (None = default)
+    output_filter: list[TransformStep] | None = None,  # Default transforms
+    meta_params: bool = True,   # Inject _search/_limit/etc. into schema
+)
+```
+
+#### `Cmd(*args: str)`
+
+Return from a `@tool` function to run a subprocess. Args are passed to
+`asyncio.create_subprocess_exec`.
+
+```python
+Cmd("git", "-C", repo_path, "log", "--max-count=10")
+```
+
+#### `ToolOutput`
+
+Structured result from tool execution (returned by `execute()`). You don't
+construct this directly — the framework builds it.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `handle` | `str` | Cache handle for the output |
+| `total_lines` | `int` | Total line count before transforms |
+| `text` | `str \| None` | Full output (inline if small or transformed) |
+| `preview` | `str \| None` | First few lines (large non-transformed output) |
+| `is_error` | `bool` | Whether the tool failed |
+
+#### `@transform(description, *, weak=False)`
+
+Decorator that registers a transform function. Must accept `lines: list[str]`
+as the first argument and return `list[str]`.
+
+```python
+@transform("Sort lines alphabetically")
+def sort(lines: list[str], reverse: bool = False) -> list[str]:
+    return sorted(lines, reverse=reverse)
+```
+
+`weak=True` marks builtins — user registrations with the same name replace them.
+
+#### `TransformStep(name, params)`
+
+A single transform invocation, used in `output_filter`:
+
+```python
+output_filter=[TransformStep("head", {"n": 10})]
+```
+
+### Examples
+
 ```python
 from typing import Annotated
 from mcpipe import Cmd, tool
@@ -148,6 +229,22 @@ descriptions to parameters — these appear in the tool's JSON Schema.
 
 Tool arguments are passed directly as keyword arguments to the function.
 String values are sanitized first (`~` and `$ENV` expanded).
+
+### Pure Python tools
+
+Return `str` instead of `Cmd` for tools that don't need a subprocess:
+
+```python
+from typing import Annotated
+from mcpipe import tool
+
+@tool("Count lines in a file", read_only=True, destructive=False)
+def count_lines(
+    path: Annotated[str, "File path"],
+) -> str:
+    with open(path) as f:
+        return str(sum(1 for _ in f))
+```
 
 ### Fuller example — git log
 
